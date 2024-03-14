@@ -1,0 +1,200 @@
+<?xml version="1.0"?>
+<robot name="macroed" xmlns:xacro="http://ros.org/wiki/xacro">
+
+  <xacro:property name="width" value="0.2" />
+
+  <material name="blue">
+    <color rgba="0 0 0.8 1"/>
+  </material>
+
+  <material name="black">
+    <color rgba="0 0 0 1"/>
+  </material>
+
+  <material name="white">
+    <color rgba="1 1 1 1"/>
+  </material>
+
+  <link name="base_link">
+    <visual>
+      <geometry>
+        <cylinder radius="0.8" length="0.1"/>
+      </geometry>
+      <material name="black"/>
+    </visual>
+  </link>
+
+  <link name="link_1">
+    <visual>
+      <origin xyz="0.0 0.0 1.5" rpy="0.0 0.0 0.0"/>
+      <geometry>
+        <cylinder radius="0.05" length="3.0"/>
+      </geometry>
+      <material name="white"/>
+    </visual>
+  </link>
+  <joint name="joint_fixed_l1" type="fixed">
+    <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/>
+    <parent link="base_link"/>
+    <child link="link_1"/>
+  </joint>
+
+  <link name="link_joint1">
+    <visual>
+      <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/>
+      <geometry>
+        <box size="0.5 0.5 0.5"/>
+      </geometry>
+      <material name="blue"/>
+    </visual>
+  </link>
+  <joint name="joint_l1_j1" type="prismatic">
+    <origin xyz="0.0 0.0 1.0" rpy="0.0 0.0 0.0"/>
+    <parent link="link_1"/>
+    <child link="link_joint1"/>
+    <limit lower="0.0" upper="1.0" effort="0.0" velocity="0.0"/>
+    <axis xyz="0.0 0.0 1.0"/>
+  </joint>
+
+  <link name="link_2">
+    <visual>
+      <origin xyz="0.0 0.5 0.0" rpy="1.57 0.0 0.0"/>
+      <geometry>
+        <cylinder radius="0.05" length="1.0"/>
+      </geometry>
+      <material name="white"/>
+    </visual>
+  </link>
+  <joint name="joint_j1_l2" type="revolute">
+    <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/>
+    <parent link="link_joint1"/>
+    <child link="link_2"/>
+    <limit lower="-3.14" upper="3.14" effort="0.0" velocity="0.0"/>
+    <axis xyz="1.0 0.0 0.0"/>
+  </joint>
+
+  <link name="link_joint3">
+    <visual>
+      <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/>
+      <geometry>
+        <cylinder radius="0.3" length="0.7"/>
+      </geometry>
+      <material name="blue"/>
+    </visual>
+  </link>
+  <joint name="joint_l2_j3" type="fixed">
+    <origin xyz="0.0 1.0 0.0" rpy="0.0 0.0 0.0"/>
+    <parent link="link_2"/>
+    <child link="link_joint3"/>
+  </joint>
+
+  <link name="link_3">
+    <visual>
+      <origin xyz="-0.5 0.0 0.0" rpy="0.0 1.57 0.0"/>
+      <geometry>
+        <cylinder radius="0.05" length="1.0"/>
+      </geometry>
+      <material name="white"/>
+    </visual>
+  </link>
+  <joint name="joint_j3_l3" type="revolute">
+    <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/>
+    <parent link="link_joint3"/>
+    <child link="link_3"/>
+    <limit lower="-3.14" upper="3.14" effort="0.0" velocity="0.0"/>
+    <axis xyz="0.0 0.0 1.0"/>
+  </joint>
+
+
+
+  <link name="link_joint4">
+    <visual>
+      <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/>
+      <geometry>
+        <cylinder radius="0.3" length="0.7"/>
+      </geometry>
+      <material name="blue"/>
+    </visual>
+  </link>
+  <joint name="joint_l3_j4" type="fixed">
+    <origin xyz="-1.0 0.0 0.0" rpy="0.0 0.0 0.0"/>
+    <parent link="link_3"/>
+    <child link="link_joint4"/>
+  </joint>
+
+  <link name="link_4">
+    <visual>
+      <origin xyz="0.0 0.5 0.0" rpy="1.57 0.0 0.0"/>
+      <geometry>
+        <cylinder radius="0.05" length="1.0"/>
+      </geometry>
+      <material name="white"/>
+    </visual>
+  </link>
+  <joint name="joint_j4_l4" type="revolute">
+    <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/>
+    <parent link="link_joint4"/>
+    <child link="link_4"/>
+    <limit lower="-3.14" upper="3.14" effort="0.0" velocity="0.0"/>
+    <axis xyz="0.0 0.0 1.0"/>
+  </joint>
+
+
+
+
+  <link name="link_joint5">
+    <visual>
+      <origin xyz="0.0 0.0 0.0" rpy="0.0 1.57 -0.78"/>
+      <geometry>
+        <cylinder radius="0.3" length="0.7"/>
+      </geometry>
+      <material name="blue"/>
+    </visual>
+  </link>
+  <joint name="joint_l4_j5" type="fixed">
+    <origin xyz="0.0 1.0 0.0" rpy="0.0 0.0 0.0"/>
+    <parent link="link_4"/>
+    <child link="link_joint5"/>
+  </joint>
+
+  <link name="link_5">
+    <visual>
+      <origin xyz="0.0 1.5 0.0" rpy="1.57 0.0 0.0"/>
+      <geometry>
+        <cylinder radius="0.05" length="3.0"/>
+      </geometry>
+      <material name="white"/>
+    </visual>
+  </link>
+  <joint name="joint_j5_l5" type="revolute">
+    <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/>
+    <parent link="link_joint5"/>
+    <child link="link_5"/>
+    <limit lower="-3.14" upper="3.14" effort="0.0" velocity="0.0"/>
+    <axis xyz="0.707 -0.707 0"/>
+  </joint>
+
+
+
+
+
+  <link name="link_ee">
+    <visual>
+      <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/>
+      <geometry>
+        <box size="0.5 0.5 0.5"/>
+      </geometry>
+      <material name="blue"/>
+    </visual>
+  </link>
+  
+  <joint name="joint_l5_ee" type="prismatic">
+    <origin xyz="0.0 1 0.0" rpy="0.0 0.0 0.0"/>
+    <parent link="link_5"/>
+    <child link="link_ee"/>
+    <limit lower="0.0" upper="2.0" effort="0.0" velocity="0.0"/>
+    <axis xyz="0 1 0"/>
+  </joint>
+
+
+</robot>
