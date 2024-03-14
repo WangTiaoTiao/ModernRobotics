@@ -211,7 +211,7 @@ void coutV(const Vector3f& v) {
 
 Matrix4f FKinBody(const Matrix4f &M, const vector<VectorXf> &Blist, const vector<float> &thetalist) {
     Matrix4f ret = M;
-    for (int i = 0; i < thetalist.size(); ++i) {
+    for (int i = 0; i < (int)thetalist.size(); ++i) {
         ret = ret * getTF(Blist[i], thetalist[i]);
     }
     regularM(ret);
@@ -220,7 +220,7 @@ Matrix4f FKinBody(const Matrix4f &M, const vector<VectorXf> &Blist, const vector
 
 Matrix4f FKinBody(const Matrix4f &M, const vector<VectorXf> &Blist, const VectorXf &thetalist) {
     Matrix4f ret = M;
-    for (int i = 0; i < thetalist.size(); ++i) {
+    for (int i = 0; i < (int)thetalist.size(); ++i) {
         ret = ret * getTF(Blist[i], thetalist(i));
     }
     regularM(ret);
@@ -229,7 +229,7 @@ Matrix4f FKinBody(const Matrix4f &M, const vector<VectorXf> &Blist, const Vector
 
 Matrix4f FKinSpace(const Matrix4f &M, const vector<VectorXf> &Slist, const vector<float> &thetalist) {
     Matrix4f ret = Matrix4f::Identity();
-    for (int i = 0; i < thetalist.size(); ++i) {
+    for (int i = 0; i < (int)thetalist.size(); ++i) {
         ret = ret * getTF(Slist[i], thetalist[i]);
     }
     ret = ret * M;
@@ -658,11 +658,11 @@ VectorXf ForwardDynamics(const VectorXf &thetalist, const VectorXf &d_thetalist,
                          const VectorXf &f_tip,     const vector<Matrix4f> &Mlist, const vector<MatrixXf> &Glist, const vector<VectorXf> &Slist) {
     
     auto M = MassMatrix(thetalist, Mlist, Glist, Slist);
-    auto c = VelQuadraticForces(thetalist, d_thetalist, Mlist, Glist, Slist);
-    auto g = GravityForces(thetalist, g, Mlist, Glist, Slist);
-    auto f = EndEffectorForces(thetalist, f_tip, Mlist, Glist, Slist);
+    auto cf = VelQuadraticForces(thetalist, d_thetalist, Mlist, Glist, Slist);
+    auto gf = GravityForces(thetalist, g, Mlist, Glist, Slist);
+    auto ef = EndEffectorForces(thetalist, f_tip, Mlist, Glist, Slist);
 
-    VectorXf dd_thetalist = M.inverse() * (taulist - c - g - f);
+    VectorXf dd_thetalist = M.inverse() * (taulist - cf - gf - ef);
     return dd_thetalist;
 }
 
