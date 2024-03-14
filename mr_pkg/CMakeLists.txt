@@ -30,14 +30,8 @@ install(TARGETS
 )
 
 install(
-  DIRECTORY urdf
+  DIRECTORY urdf launch meshes rviz
   DESTINATION share/${PROJECT_NAME}  
 )
-
-install(
-  DIRECTORY launch
-  DESTINATION share/${PROJECT_NAME}
-)
-
 
 ament_package()
