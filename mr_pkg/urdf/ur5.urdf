@@ -19,7 +19,7 @@
     </joint>
 
     <joint name="shoulder_1_joint" type="continuous">
-        <origin xyz="0.0 0.0 0.089" rpy="0.0 0.0 0.0"/>
+        <origin xyz="0.0 0.0 0.089159" rpy="0.0 0.0 0.0"/>
         <parent link="base_link"/>
         <child link="shoulder_link"/>
         <axis xyz="0.0 0.0 1.0"/>
@@ -30,7 +30,7 @@
     </joint>
 
     <joint name="shoulder_2_joint" type="continuous">
-        <origin xyz="0.0 0.109 0.0" rpy="0.0 0.0 0.0"/>
+        <origin xyz="0.0 0.13585 0.0" rpy="0.0 1.570796325 0.0"/>
         <parent link="shoulder_link"/>
         <child link="upper_arm_link"/>
         <axis xyz="0.0 1.0 0.0"/>
@@ -38,28 +38,28 @@
 
     <joint name="elbow_joint" type="continuous">
 
-        <origin xyz="0.425 0 0" rpy="0.0 0.0 0.0"/>
+        <origin xyz="0.0 -0.1197 0.425" rpy="0.0 0.0 0.0"/>
         <parent link="upper_arm_link"/>
         <child link="forearm_link"/>
         <axis xyz="0.0 1.0 0.0"/>
     </joint>
 
     <joint name="wrist_1_joint" type="continuous">
-        <origin xyz="0.392 0 0" rpy="0.0 0.0 0.0"/>
+        <origin xyz="0.0 0 0.39225" rpy="0.0 1.570796325 0.0"/>
         <parent link="forearm_link"/>
         <child link="wrist_1_link"/>
         <axis xyz="0.0 1.0 0.0"/>
     </joint>
 
     <joint name="wrist_2_joint" type="continuous">
-        <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/>
+        <origin xyz="0.0 0.093 0.0" rpy="0.0 0.0 0.0"/>
         <parent link="wrist_1_link"/>
         <child link="wrist_2_link"/>
-        <axis xyz="0.0 0.0 -1.0"/>
+        <axis xyz="0.0 0.0 1.0"/>
     </joint>
 
     <joint name="wrist_3_joint" type="continuous">
-        <origin xyz="0 0 -0.095" rpy="0.0 0.0 0.0"/>
+        <origin xyz="0 0 0.09465" rpy="0.0 0.0 0.0"/>
         <parent link="wrist_2_link"/>
         <child link="wrist_3_link"/>
         <axis xyz="0.0 1.0 0.0"/>
@@ -100,7 +100,7 @@
             <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/>
         </xacro:cylinder_i>
         <visual>
-            <origin xyz="0.0 0.02685 0.0" rpy="0.0 1.57079 0.0" />
+            <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0" />
             <geometry>
                 <mesh filename="package://mr_pkg/meshes/ur5/visual/upperarm.dae"/>
             </geometry>
@@ -115,7 +115,7 @@
             <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/>
         </xacro:cylinder_i>
         <visual>
-            <origin xyz="0 -0.093 0" rpy="0 1.57079 0"/>
+            <origin xyz="0 0 0" rpy="0 0 0"/>
             <geometry>
                 <mesh filename="package://mr_pkg/meshes/ur5/visual/forearm.dae"/>
             </geometry>
@@ -130,7 +130,7 @@
             <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/>
         </xacro:cylinder_i>
         <visual>
-            <origin xyz="0 -0.093 0" rpy="0 3.14159 0"/>
+            <origin xyz="0 0 0" rpy="0 0 0"/>
             <geometry>
                 <mesh filename="package://mr_pkg/meshes/ur5/visual/wrist1.dae"/>
             </geometry>
@@ -145,7 +145,7 @@
             <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/>
         </xacro:cylinder_i>
         <visual>
-            <origin xyz="0 0 0" rpy="0 3.14159 0"/>
+            <origin xyz="0 0 0" rpy="0 0 0"/>
             <geometry>
                 <mesh filename="package://mr_pkg/meshes/ur5/visual/wrist2.dae"/>
             </geometry>
@@ -173,7 +173,7 @@
     <!-- ee -->
     <link name="ee_link"/>
     <joint name="ee_joint" type="fixed">
-        <origin xyz="0.0 0.082 0.0" rpy="0.0 0.0 0.0"/>
+        <origin xyz="0.0 0.082 0.0" rpy="-1.570796325 0.0 0.0"/>
         <parent link="wrist_3_link"/>
         <child link="ee_link"/>
     </joint>

@@ -77,7 +77,7 @@ def generate_launch_description():
     )
 
     nodes = [
-        joint_state_publisher_node,
+        # joint_state_publisher_node,
         robot_state_publisher_node,
         rviz_node,
     ]

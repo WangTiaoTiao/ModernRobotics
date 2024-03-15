@@ -69,7 +69,6 @@ void getW(const Matrix3f& r, Vector3f& w, float &theta ) {
     theta = M_PI;
   } else {
     theta = acosf(0.5f * (r.trace() - 1.0f));
-    cout << theta << endl;
     Matrix3f w_mat = (r - r.transpose()) / (2.0f*sin(theta));
     w = Vector3f{w_mat(2, 1), w_mat(0, 2), w_mat(1, 0)};
   }
@@ -132,7 +131,6 @@ void getTwist(const Matrix4f& tf, VectorXf& twist) {
         v = g_inv * p;
     } 
     twist << w, v;
-    cout << twist.transpose() << '\n' << theta << endl;
     twist = twist * theta;
     return;
 };
@@ -482,6 +480,8 @@ MatrixXf getAdV(const VectorXf &V) {
     adv.block<3,3>(3,3) = getSkew(w);
     adv.block<3,3>(3,0) = getSkew(v); 
 
+    regularM(adv);
+
     return adv;
 }
 
@@ -502,7 +502,6 @@ MatrixXf getAdV(const VectorXf &V) {
 VectorXf InverseDynamic(const VectorXf &thetalist, const VectorXf &d_thetalist,   const VectorXf &dd_thetalist,  const Vector3f &g, 
                         const VectorXf &f_tip,     const vector<Matrix4f> &Mlist, const vector<MatrixXf> &Glist, const vector<VectorXf> &Slist)
 { 
-
     int n = thetalist.rows();
     Matrix4f Mi = Matrix4f::Identity();
     Matrix4f Ti = Matrix4f::Identity();
@@ -534,13 +533,12 @@ VectorXf InverseDynamic(const VectorXf &thetalist, const VectorXf &d_thetalist, 
     for (int i = n - 1; i >= 0; --i) {
 
         // 8.53
-        auto adj1 = AdTi[i + 1].transpose();
-        auto adj2 = getAdV(Vi[i + 1]).transpose();
-        Fi = adj1 * Fi + Glist[i] * Vdi[i + 1] - adj2 * (Glist[i] * Vi[i + 1]);
-
+        auto adj1 = AdTi[i + 1];
+        auto adj2 = getAdV(Vi[i + 1]);
+        Fi = adj1.transpose() * Fi + Glist[i] * Vdi[i + 1] - adj2.transpose() * (Glist[i] * Vi[i + 1]);
+        
         // 8.54
         taulist[i] = Fi.transpose() * Ai[i];
-
     }
     return taulist;
 }
@@ -656,7 +654,6 @@ MatrixXf MassMatrix(const VectorXf &thetalist, const vector<Matrix4f> &Mlist, co
 */
 VectorXf ForwardDynamics(const VectorXf &thetalist, const VectorXf &d_thetalist,   const VectorXf &taulist,  const Vector3f &g, 
                          const VectorXf &f_tip,     const vector<Matrix4f> &Mlist, const vector<MatrixXf> &Glist, const vector<VectorXf> &Slist) {
-    
     auto M = MassMatrix(thetalist, Mlist, Glist, Slist);
     auto cf = VelQuadraticForces(thetalist, d_thetalist, Mlist, Glist, Slist);
     auto gf = GravityForces(thetalist, g, Mlist, Glist, Slist);

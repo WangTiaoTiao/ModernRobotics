@@ -9,6 +9,8 @@ endif()
 find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(Eigen3 REQUIRED)
+find_package(sensor_msgs REQUIRED)
+
 
 include_directories(${EIGEN3_INCLUDE_DIR})
 
@@ -16,22 +18,29 @@ include_directories(${EIGEN3_INCLUDE_DIR})
 # further dependencies manually.
 # find_package(<dependency> REQUIRED)
 
-add_executable(node5 src/node5.cpp)
-
-target_include_directories(node5 PUBLIC
-  Eigen3::Eigen
-  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-  $<INSTALL_INTERFACE:include>)
-target_compile_features(node5 PUBLIC c_std_99 cxx_std_17)  # Require C99 and C++17
+add_executable(exe8_node src/exe8.cpp)
 
 install(TARGETS 
-  node5
+  exe8_node
   DESTINATION lib/${PROJECT_NAME}
 )
+
+ament_target_dependencies(
+  exe8_node
+  "rclcpp"
+  "Eigen3"
+  "sensor_msgs"
+)
+
+target_compile_features(exe8_node PUBLIC c_std_99 cxx_std_17)  # Require C99 and C++17
 
 install(
   DIRECTORY urdf launch meshes rviz
   DESTINATION share/${PROJECT_NAME}  
 )
+
+set(CMAKE_BUILD_TYPE Debug)
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g")
+
 
 ament_package()
