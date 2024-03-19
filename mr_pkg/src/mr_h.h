@@ -10,7 +10,7 @@ using namespace Eigen;
 using namespace std;
 
 #define pi 3.1415926f
-#define ZERO_TOL 1e-6f
+#define ZERO_TOL 1e-5f
 #define cout cout << setprecision(4)
 
 Matrix3f getSkew(const Vector3f& w) {
@@ -38,7 +38,7 @@ void regularM(MatrixXf &in) {
     }
 }
 
-void tf2rp(const Matrix4f &tf, Matrix3f &r, Vector3f &p) {
+void TransToRP(const Matrix4f &tf, Matrix3f &r, Vector3f &p) {
     r = tf.block<3, 3>(0, 0);
     p = tf.block<3, 1>(0, 3);
 }
@@ -74,14 +74,14 @@ void getW(const Matrix3f& r, Vector3f& w, float &theta ) {
   }
 }
 
-Matrix3f getRotation(const Vector3f &w) {
-    Vector3f w_hat = w.normalized();
-    float theta = w.norm();
-    Matrix3f w_skew = getSkew(w_hat);
-    Matrix3f r = Matrix3f::Identity() + sin(theta) * w_skew +
-                (1 - cos(theta)) * w_skew * w_skew;
-    return r;
-}
+// Matrix3f getRotation(const Vector3f &w) {
+//     Vector3f w_hat = w.normalized();
+//     float theta = w.norm();
+//     Matrix3f w_skew = getSkew(w_hat);
+//     Matrix3f r = Matrix3f::Identity() + sin(theta) * w_skew +
+//                 (1 - cos(theta)) * w_skew * w_skew;
+//     return r;
+// }
 
 Matrix3f getRotation(const Vector3f &w_hat, const float& theta) {
     Matrix3f w_skew = getSkew(w_hat);
@@ -153,24 +153,6 @@ Matrix4f getTF(const VectorXf& screw_aixs, const float& theta) {
     tf(1,3) = v(1);
     tf(2,3) = v(2);
     return tf;
-}
-
-Matrix4f getTF(const VectorXf& twist) {
-    VectorXf screw_axis(6);
-    Vector3f w = twist.head<3>();
-    Vector3f v = twist.segment<3>(2);
-    float theta;
-    if (w.isZero()) {
-        theta = v.norm();
-        v = v.normalized();
-    } else {
-        theta = w.norm();
-        w = w.normalized();
-        v = v / theta;
-    }
-    screw_axis << w, v;
-    return getTF(screw_axis, theta);
-    
 }
 
 MatrixXf getAdT(const Matrix4f& tf) {
@@ -380,7 +362,7 @@ Matrix3f rot2so3(const Matrix3f &r) {
 Matrix4f tf2se3(const Matrix4f &tf) {
     Matrix3f r;
     Vector3f p;
-    tf2rp(tf, r, p);
+    TransToRP(tf, r, p);
 
     Matrix4f se3 = Matrix4f::Zero();
     Matrix3f so3 = rot2so3(r);
@@ -396,10 +378,62 @@ Matrix4f tf2se3(const Matrix4f &tf) {
     return se3;
 }
 
-VectorXf se3toVec(const Matrix4f &se3) {
+VectorXf se3ToVec(const Matrix4f &se3) {
     VectorXf twist(6);
     twist << se3(2, 1), se3(0, 2), se3(1, 0), se3(0, 3), se3(1, 3), se3(2, 3);
     return twist;
+}
+
+/*
+% Takes a 3x3 skew-symmetric matrix (an element of so(3)).
+% Returns the corresponding 3-vector (angular velocity).
+*/
+Vector3f so3ToVec(const Matrix3f &so3) {
+    Vector3f omg;
+    omg(0) = so3(2, 1);
+    omg(1) = so3(0, 2);
+    omg(2) = so3(1, 0);
+    return omg;
+}
+
+/*
+% Takes a 3x3 so(3) representation of exponential coordinates.
+% Returns R in SO(3) that is achieved by rotating about omghat by theta 
+% from an initial orientation R = I.
+*/
+Matrix3f so3ToRot(const Matrix3f &so3){
+    Matrix3f rot = Matrix3f::Identity();
+    Vector3f omg = so3ToVec(so3);
+    float theta = omg.norm();
+    if (!nearZero(theta)) {
+        Matrix3f omg_mat = so3 / theta;
+        rot = Matrix3f::Identity() + sin(theta) * omg_mat
+            + (1 - cos(theta)) * omg_mat * omg_mat;
+    }
+    return rot;
+}
+
+/*
+% Takes a se(3) representation of exponential coordinates.
+% Returns a T matrix in SE(3) that is achieved by traveling along/about the 
+% screw axis S for a distance theta from an initial configuration T = I.
+*/
+Matrix4f se3totf(const Matrix4f &se3) {
+    Vector3f omg = so3ToVec(se3.block<3,3>(0,0));
+    Matrix4f tf = Matrix4f::Identity();
+    float theta = omg.norm();
+    if (nearZero(theta)) {
+        tf.block<3, 1>(0, 3) = se3.block<3, 1>(0, 3);
+    } else {
+        Matrix3f omg_mat = se3.block<3,3>(0,0) / theta;
+        Vector3f v = se3.block<3,1>(0,3) / theta;
+        tf.block<3,3>(0,0) = so3ToRot(se3.block<3,3>(0,0));
+        Matrix3f g = Matrix3f::Identity() * theta
+                   + (1.0f - cos(theta)) * omg_mat 
+                   + (theta - sin(theta)) * omg_mat * omg_mat;
+        tf.block<3, 1>(0, 3) = g * v;      
+    }
+    return tf;
 }
 
 bool IKinBody(const vector<VectorXf> &Blist, const Matrix4f &M, const Matrix4f &t_sd, VectorXf &thetalist_0, const float &e_omg, const float &e_v ) {
@@ -408,7 +442,7 @@ bool IKinBody(const vector<VectorXf> &Blist, const Matrix4f &M, const Matrix4f &
 
     Matrix4f t_bs = TransInv(FKinBody(M, Blist, thetalist));
     Matrix4f t_bd = t_bs * t_sd;
-    VectorXf twist_b = se3toVec(tf2se3(t_bd));
+    VectorXf twist_b = se3ToVec(tf2se3(t_bd));
 
     float cur_e_w = (twist_b.head<3>()).norm();
     float cur_e_v = (twist_b.segment<3>(3)).norm();
@@ -425,7 +459,7 @@ bool IKinBody(const vector<VectorXf> &Blist, const Matrix4f &M, const Matrix4f &
 
         t_bs = TransInv(FKinBody(M, Blist, thetalist));
         t_bd = t_bs * t_sd;
-        twist_b = se3toVec(tf2se3(t_bd));
+        twist_b = se3ToVec(tf2se3(t_bd));
 
         cur_e_w = (twist_b.head<3>()).norm();
         cur_e_v = (twist_b.segment<3>(3)).norm();
@@ -434,12 +468,30 @@ bool IKinBody(const vector<VectorXf> &Blist, const Matrix4f &M, const Matrix4f &
     return false;
 }
 
+/*
+% Takes Slist: The joint screw axes in the space frame when the manipulator
+%              is at the home position, in the format of a matrix with the
+%              screw axes as the columns,
+%       M: The home configuration of the end-effector,
+%       T: The desired end-effector configuration Tsd,
+%       thetalist0: An initial guess of joint angles that are close to 
+%                   satisfying Tsd,
+%       eomg: A small positive tolerance on the end-effector orientation 
+%             error. The returned joint angles must give an end-effector 
+%             orientation error less than eomg,
+%       ev: A small positive tolerance on the end-effector linear position 
+%           error. The returned joint angles must give an end-effector 
+%           position error less than ev.
+% Returns thetalist: Joint angles that achieve T within the specified 
+%                    tolerances,
+%         success:
+*/
 bool IKinSpace(const vector<VectorXf> &Slist, const Matrix4f &M, const Matrix4f &t_sd, VectorXf &thetalist_0, const float &e_omg, const float &e_v ) {
     int max_iter = 20, n = thetalist_0.size();
     VectorXf thetalist = thetalist_0;
 
     Matrix4f t_sb = FKinSpace(M, Slist, thetalist);
-    VectorXf twist_s = getAdT(t_sb) * se3toVec(tf2se3(TransInv(t_sb) * t_sd));
+    VectorXf twist_s = getAdT(t_sb) * se3ToVec(tf2se3(TransInv(t_sb) * t_sd));
     
     float cur_e_w = (twist_s.head<3>()).norm();
     float cur_e_v = (twist_s.segment<3>(3)).norm();
@@ -455,14 +507,13 @@ bool IKinSpace(const vector<VectorXf> &Slist, const Matrix4f &M, const Matrix4f 
         for (int i = 0; i < n; ++i) thetalist[i] = deg2rad(rad2deg(thetalist[i]));
 
         t_sb = FKinSpace(M, Slist, thetalist);
-        twist_s = getAdT(t_sb) * se3toVec(tf2se3(TransInv(t_sb) * t_sd));
+        twist_s = getAdT(t_sb) * se3ToVec(tf2se3(TransInv(t_sb) * t_sd));
 
         cur_e_w = (twist_s.head<3>()).norm();
         cur_e_v = (twist_s.segment<3>(3)).norm();
         cout << i << " : " << cur_e_w  << " - " << cur_e_v << endl;
     }
     return false;
-
 }
 
 /*
@@ -664,28 +715,117 @@ VectorXf ForwardDynamics(const VectorXf &thetalist, const VectorXf &d_thetalist,
 }
 
 /*
-% Takes thetalist: n-vector of initial joint variables,
-%       dthetalist: n-vector of initial joint rates,
-%       taumat: An N x n matrix of joint forces/torques, where each row is 
-%               the joint effort at any time step,
-%       g: Gravity vector g,
-%       Ftipmat: An N x 6 matrix of spatial forces applied by the 
-%                end-effector (If there are no tip forces, the user should 
-%                input a zero and a zero matrix will be used),
-%       Mlist: List of link frames {i} relative to {i-1} at the home
-%              position,
-%       Glist: Spatial inertia matrices Gi of the links,
-%       Slist: Screw axes Si of the joints in a space frame, in the format
-%              of a matrix with the screw axes as the columns,
-%       dt: The timestep between consecutive joint forces/torques,
-%       intRes: Integration resolution is the number of times integration
-%               (Euler) takes places between each time step. Must be an 
-%               integer value greater than or equal to 1.
-% Returns thetamat: The N x n matrix of robot joint angles resulting from 
-%                   the specified joint forces/torques,
-%         dthetamat: The N x n matrix of robot joint velocities.
+% Takes Tf: Total time of the motion in seconds from rest to rest,
+%       t: The current time t satisfying 0 < t < Tf.
+% Returns s: The path parameter s(t) corresponding to a third-order 
+%            polynomial motion that begins and ends at zero velocity.
 */
-void ForwardDynamicsTrajectory() {
+float CubicTimeScaling(const float &total_time, const float &cur_time){
+    float x = (cur_time / total_time);
+    return 3.0f * x * x - 2.0f * x * x * x;
+}
+
+/*
+% Takes Tf: Total time of the motion in seconds from rest to rest,
+%       t: The current time t satisfying 0 < t < Tf.
+% Returns s: The path parameter s(t) corresponding to a fifth-order
+%            polynomial motion that begins and ends at zero velocity and 
+%            zero acceleration.
+*/
+float QuinticTimeScaling(const float &total_time, const float &cur_time){
+    float x = (cur_time / total_time);
+    return 10.0f * pow(x, 3) - 15.0f * powf(x, 4) + 6.0f * pow(x, 5);
+}
+
+/*
+% Takes thetastart: The initial joint variables,
+%       thetaend: The final joint variables,
+%       Tf: Total time of the motion in seconds from rest to rest,
+%       N: The number of points N > 1 (Start and stop) in the discrete 
+%          representation of the trajectory,
+%       method: The time-scaling method, where 3 indicates cubic 
+%               (third-order polynomial) time scaling and 5 indicates 
+%               quintic (fifth-order polynomial) time scaling.
+% Returns traj
+*/
+void JointTrajectory(vector<VectorXf> &traj, const VectorXf &start, const VectorXf &end, const float &total_time, const int &n, const int method = 3) {
+    float s, time_gap = total_time / (n - 1);
+    VectorXf cur = start;
+    traj.clear();
+
+    for (int i = 0; i < n; ++i) {
+        if (method == 3) {
+            s = CubicTimeScaling(total_time, time_gap * i);
+        } else {
+            s = QuinticTimeScaling(total_time, time_gap * i);
+        }
+        cur = start + s * (end - start);
+        traj.emplace_back(cur);
+    }
     return;
 }
+
+/*
+% Takes Xstart: The initial end-effector configuration,
+%       Xend: The final end-effector configuration,
+%       Tf: Total time of the motion in seconds from rest to rest,
+%       N: The number of points N > 1 (Start and stop) in the discrete
+%          representation of the trajectory,
+%       method: The time-scaling method, where 3 indicates cubic
+%               (third-order polynomial) time scaling and 5 indicates 
+%               quintic (fifth-order polynomial) time scaling.
+% Returns traj: 
+*/
+void ScrewTrajectory(vector<Matrix4f> &traj, const Matrix4f &start, const Matrix4f &end, const float &total_time, const int &n, const int method = 3) {
+    Matrix4f cur = start;
+    float s, time_gap = total_time / (n - 1);
+    traj.clear();
+    traj.reserve(n);
+
+    for (int i = 0; i < n; ++i) {
+        if (method == 3) {
+            s = CubicTimeScaling(total_time, time_gap * i);
+        } else {
+            s = QuinticTimeScaling(total_time, time_gap * i);
+        }
+        cur = start * se3totf(s * (tf2se3(TransInv(start) * end)));
+        traj.emplace_back(cur);
+    }
+    return;
+}
+
+/*
+% Takes Xstart: The initial end-effector configuration,
+%       Xend: The final end-effector configuration,
+%       Tf: Total time of the motion in seconds from rest to rest,
+%       N: The number of points N > 1 (Start and stop) in the discrete 
+%          representation of the trajectory,
+%       method: The time-scaling method, where 3 indicates cubic 
+%               (third-order polynomial) time scaling and 5 indicates 
+%               quintic (fifth-order polynomial) time scaling.
+% Returns traj:
+*/
+void CartesianTrajectory(vector<Matrix4f> &traj, const Matrix4f &start, const Matrix4f &end, const float &total_time, const int &n, const int method = 3) {
+    Matrix4f cur = start;
+    float s, time_gap = total_time / (n - 1);
+    Matrix3f rot_start, rot_end;
+    Vector3f p_start, p_end;
+    TransToRP(start, rot_start, p_start);
+    TransToRP(end, rot_end, p_end);
+
+    traj.clear();
+    traj.reserve(n);
+
+    for (int i = 0; i < n; ++i) {
+        if (method == 3) {
+            s = CubicTimeScaling(total_time, time_gap * i);
+        } else {
+            s = QuinticTimeScaling(total_time, time_gap * i);
+        }
+        cur.block<3, 3>(0, 0) = rot_start * so3ToRot(rot2so3(rot_start.transpose() * rot_end) * s);
+        cur.block<3, 1>(0, 3) = p_start + s * (p_end - p_start);
+        traj.emplace_back(cur);
+    }
+    return;
+} 
 
