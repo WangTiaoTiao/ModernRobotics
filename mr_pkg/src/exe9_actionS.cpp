@@ -19,6 +19,7 @@ public:
         robot_ = std::make_shared<UR5>(); 
 
         thetalist_ = Eigen::VectorXf::Zero(6);
+        thetalist_ << -0.085, -0.9, 1.5, -2.12, -1.47, 0;
 
         js_msg_ = std::make_shared<topic_t>();
         js_msg_->name = {"shoulder_1_joint", "shoulder_2_joint",  "elbow_joint", 
@@ -32,6 +33,8 @@ public:
                     std::bind(&ArmMoveServer::handle_goal, this, _1, _2),
                     std::bind(&ArmMoveServer::handle_cancel, this, _1),
                     std::bind(&ArmMoveServer::handle_acceptable, this, _1));
+        
+        timer_ = this->create_wall_timer(10ms, std::bind(&ArmMoveServer::send_js, this));
     
         RCLCPP_INFO(this->get_logger(), "Create actionS_move_twist_node !");
     }
@@ -56,7 +59,7 @@ private:
         bool flag = robot_->NewtonIK(tf_goal, thetalist_goal_, 0.1, 0.1);
 
         if (flag) {
-            for (auto t : thetalist_goal_) RCLCPP_INFO(this->get_logger(), " goal thetas : %f", t);;
+            for (auto t : thetalist_goal_) RCLCPP_INFO(this->get_logger(), " goal thetas : %f", t);
         } else {
             RCLCPP_ERROR(this->get_logger(), " Cannot Inverse");
             return rclcpp_action::GoalResponse::REJECT;
@@ -98,18 +101,12 @@ private:
             }
 
             thetalist_ = TrapezoidalTrajectory(thetalist_start, thetalist_goal_, 0.3, total_time, i, "vt");
-
-            for (int j = 0; j < 6; ++j) js_msg_->position[j] = deg2rad(rad2deg(thetalist_[j]));
-
-            js_msg_->header.stamp = this->now();
-            js_pub_->publish(*js_msg_);
             
             feedback_msg->cur_time = i; 
             feedback_msg->diff = (thetalist_ - thetalist_goal_).norm();
 
             goal_handle->publish_feedback(feedback_msg);
 
-            cout << i << endl;
             rate.sleep();
         }
 
@@ -120,6 +117,12 @@ private:
         }
     }
     
+    void send_js() const {
+        for (int j = 0; j < 6; ++j) js_msg_->position[j] = deg2rad(rad2deg(thetalist_[j]));
+        js_msg_->header.stamp = this->now();
+        js_pub_->publish(*js_msg_);
+    }
+
     std::shared_ptr<UR5> robot_;
     rclcpp_action::Server<action_t>::SharedPtr server_;
     rclcpp::Publisher<topic_t>::SharedPtr js_pub_;

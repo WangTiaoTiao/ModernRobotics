@@ -12,6 +12,8 @@ find_package(Eigen3 REQUIRED)
 find_package(rclcpp_action)
 find_package(sensor_msgs REQUIRED)
 find_package(mr_interface_pkg REQUIRED)
+find_package(geometry_msgs REQUIRED)
+
 
 include_directories(${EIGEN3_INCLUDE_DIR})
 
@@ -49,7 +51,7 @@ ament_target_dependencies(exe9_actionC_node
   "Eigen3"
   "rclcpp_action"
   "mr_interface_pkg"
-  "sensor_msgs"
+  "geometry_msgs"
 )
 
 install(

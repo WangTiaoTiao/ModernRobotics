@@ -73,6 +73,11 @@ def generate_launch_description():
         executable="exe9_actionS_node",
     )
 
+    exe9_client_node = Node(
+        package="mr_pkg",
+        executable="exe9_actionC_node",
+    )
+
     rviz_node = Node(
         package="rviz2",
         executable="rviz2",
@@ -87,6 +92,7 @@ def generate_launch_description():
         robot_state_publisher_node,
         rviz_node,
         exe9_server_node,
+        exe9_client_node,
     ]
 
     return LaunchDescription(declared_arguments + nodes)

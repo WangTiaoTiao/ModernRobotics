@@ -2,7 +2,7 @@
 #include "rclcpp/rclcpp.hpp"
 #include "rclcpp_action/rclcpp_action.hpp"
 #include "mr_interface_pkg/action/move_arm.hpp"
-#include "sensor_msgs/msg/joint_state.hpp"
+#include "geometry_msgs/msg/pose_stamped.hpp"
 
 using namespace robot;
 
@@ -10,10 +10,18 @@ class ArmMoveClient : public rclcpp::Node
 {
 public:
     using action_t = mr_interface_pkg::action::MoveArm;
+    using pose_t = geometry_msgs::msg::PoseStamped;
 
     ArmMoveClient() : Node("actionC_move_twist_node")
     {   
+        using namespace std::placeholders;
+        
+        robot_ = std::make_shared<UR5>(); 
+        id_ = 0;
         client_ = rclcpp_action::create_client<action_t>(this, "action_move_twist");
+        pose_sub_ = this->create_subscription<pose_t>("/goal_pose", 10, 
+                                        std::bind(&ArmMoveClient::pose_cb, this, _1));
+        
         RCLCPP_INFO(this->get_logger(), "Create actionC_move_twist_node !");
     }
 
@@ -51,7 +59,28 @@ public:
     
 private:
 
-    // rclcpp_action::Client<ActionT>::GoalResponseCallback = std::function<void (rclcpp_action::ClientGoalHandle<ActionT>::SharedPtr)>
+    void pose_cb(const pose_t::SharedPtr pose_msg) {
+        const float total_time = 4.0f;
+        Matrix4f tf_goal = Matrix4f::Identity();
+
+        tf_goal(0, 3) = pose_msg->pose.position.x;
+        tf_goal(1, 3) = pose_msg->pose.position.y;
+
+        Eigen::Quaternionf q;
+        q.x() = pose_msg->pose.orientation.x;
+        q.y() = pose_msg->pose.orientation.y;
+        q.z() = pose_msg->pose.orientation.z;
+        q.w() = pose_msg->pose.orientation.w;
+
+        const Eigen::Matrix3f r{{0, 0, 1}, {0, 1, 0}, {-1, 0, 0}};
+        tf_goal.block<3, 3>(0, 0) = q.toRotationMatrix() * r;
+
+        const auto twist = se3ToVec(tf2se3(tf_goal));
+        vector<float> vec;
+        for (int i = 0; i < 6; ++i) vec.push_back(twist[i]);
+        send_goal(vec, ++id_, total_time);
+    }
+
     void goal_response_cb(const rclcpp_action::ClientGoalHandle<action_t>::SharedPtr &goal_handle)
     {
         if (!goal_handle)
@@ -62,7 +91,6 @@ private:
         }
     }
 
-    // std::function<void (typename ClientGoalHandle<ActionT>::SharedPtr,const std::shared_ptr<const Feedback>)>;
     void feedback_cb(rclcpp_action::ClientGoalHandle<action_t>::SharedPtr goal_handle, 
                      const std::shared_ptr<const action_t::Feedback> feedback)
     {
@@ -73,7 +101,6 @@ private:
         RCLCPP_INFO(this->get_logger(), "Current time : %.2f , with remained distance : %.2f",cur_time, diff);
     }
 
-    // ResultCallback = std::function<void (const WrappedResult & result)>;
     void result_cb(const rclcpp_action::ClientGoalHandle<action_t>::WrappedResult &result)
     {   
         switch (result.code)
@@ -98,6 +125,9 @@ private:
     }
 
     rclcpp_action::Client<action_t>::SharedPtr client_;
+    rclcpp::Subscription<pose_t>::SharedPtr pose_sub_;
+    std::shared_ptr<UR5> robot_;
+    int id_;
 };
 
 int main(int argc, char const *argv[])
@@ -106,15 +136,6 @@ int main(int argc, char const *argv[])
     rclcpp::init(argc, argv);
     auto node = std::make_shared<ArmMoveClient>();
 
-    UR5 robot;
-    VectorXf thetalist(6);
-    thetalist << 1, 2, 3, 4, 5, 6;
-    int id = 1;
-    float total_time = 4;
-    auto twist = se3ToVec(tf2se3(robot.ForwardK(thetalist)));
-    vector<float> vec;
-    for (int i = 0; i < 6; ++i) vec.push_back(twist[i]);
-    node->send_goal(vec, id, total_time);
     rclcpp::spin(node);
     rclcpp::shutdown();
     return 0;

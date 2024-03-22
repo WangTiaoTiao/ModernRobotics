@@ -45,6 +45,10 @@ public:
         return u3;
     }
     
+    Matrix3f getRse( ) const {
+        Matrix3f r_se = M_.block<3, 3>(0, 0);
+        return r_se;
+    }
     // VectorXf NumericalIK(const Matrix4f &t_sd) {
 
     //     float a2 = 0.425, a3 = 0.39225, d6=0.0823, d4 = 0.10915;
