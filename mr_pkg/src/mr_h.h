@@ -384,6 +384,16 @@ VectorXf se3ToVec(const Matrix4f &se3) {
     return twist;
 }
 
+Matrix4f VecTose3(const VectorXf &twist) {
+    Matrix4f se3 = Matrix4f::Identity();
+    Vector3f omg = twist.head<3>();
+    Vector3f v   = twist.segment<3>(3);
+
+    se3.block<3,3>(0, 0) = getSkew(omg);
+    se3.block<3,1>(0, 3) = v;
+    return se3;
+}
+
 /*
 % Takes a 3x3 skew-symmetric matrix (an element of so(3)).
 % Returns the corresponding 3-vector (angular velocity).
@@ -418,7 +428,7 @@ Matrix3f so3ToRot(const Matrix3f &so3){
 % Returns a T matrix in SE(3) that is achieved by traveling along/about the 
 % screw axis S for a distance theta from an initial configuration T = I.
 */
-Matrix4f se3totf(const Matrix4f &se3) {
+Matrix4f se3ToTF(const Matrix4f &se3) {
     Vector3f omg = so3ToVec(se3.block<3,3>(0,0));
     Matrix4f tf = Matrix4f::Identity();
     float theta = omg.norm();
@@ -450,6 +460,7 @@ bool IKinBody(const vector<VectorXf> &Blist, const Matrix4f &M, const Matrix4f &
     for (int i = 0; i < max_iter; ++i) {
         if (cur_e_v <= e_v && cur_e_w <= e_omg) {
             thetalist_0 = thetalist;
+            cout << "Inverse Found !" << endl;
             return true;
         }
         auto j_b = JacobianBody(Blist, thetalist);
@@ -465,6 +476,7 @@ bool IKinBody(const vector<VectorXf> &Blist, const Matrix4f &M, const Matrix4f &
         cur_e_v = (twist_b.segment<3>(3)).norm();
         cout << i << " : " << cur_e_w  << " - " << cur_e_v << endl;
     }
+    cout << "[IKinBody] Inverse Not Found !" << endl;
     return false;
 }
 
@@ -499,6 +511,7 @@ bool IKinSpace(const vector<VectorXf> &Slist, const Matrix4f &M, const Matrix4f 
     for (int i = 0; i < max_iter; ++i) {
         if (cur_e_v <= e_v && cur_e_w <= e_omg) {
             thetalist_0 = thetalist;
+            cout << "Inverse Found !" << endl;
             return true;
         }
         auto j_s = JacobianSpace(Slist, thetalist);
@@ -513,6 +526,7 @@ bool IKinSpace(const vector<VectorXf> &Slist, const Matrix4f &M, const Matrix4f 
         cur_e_v = (twist_s.segment<3>(3)).norm();
         cout << i << " : " << cur_e_w  << " - " << cur_e_v << endl;
     }
+    cout << "[IKinBody] Inverse Not Found !" << endl;
     return false;
 }
 
@@ -737,6 +751,40 @@ float QuinticTimeScaling(const float &total_time, const float &cur_time){
     return 10.0f * pow(x, 3) - 15.0f * powf(x, 4) + 6.0f * pow(x, 5);
 }
 
+float TrapezoidalTimeScaling(const float &v, const float &a, const float &total_time, const float &cur_time) {
+    if (cur_time >= 0 && cur_time <= (v / a)) {
+        return 0.5f * a * cur_time * cur_time;
+    } else if (cur_time > (v / a) && cur_time <= (total_time - v/a)) {
+        return v * cur_time - (v * v) / (2 * a);
+    } else if (cur_time > (total_time - v/a) && cur_time <= total_time) {
+        return (2 * a * v * total_time - 2 * v * v - 
+                a * a * (cur_time - total_time) * (cur_time - total_time)) / (2 * a);
+    } else {
+        return -1;
+    }
+}
+
+float TrapezoidalVA(const float &v, const float &a, const float &cur_time) {
+    if ((v * v / a) > 1) return -1;
+    float total_time = (a + v * v) / (v * a);
+    return TrapezoidalTimeScaling(v, a, total_time, cur_time);
+}
+
+float TrapezoidalVT(const float &v, const float &total_time, const float &cur_time) {
+    float vt = v * total_time;
+    if (vt <= 1 || vt > 2) return -1;
+    float a = (v * v) / (vt - 1);
+    return TrapezoidalTimeScaling(v, a, total_time, cur_time);
+}
+
+float TrapezoidalAT(const float &a, const float &total_time, const float &cur_time) {
+    float at = a * total_time * total_time;
+    if (at < 4) return -1;
+    float v = 0.5 * (a * total_time - sqrt(a) * sqrt(at - 4));
+    return TrapezoidalTimeScaling(v, a, total_time, cur_time);
+}
+
+
 /*
 % Takes thetastart: The initial joint variables,
 %       thetaend: The final joint variables,
@@ -765,6 +813,23 @@ void JointTrajectory(vector<VectorXf> &traj, const VectorXf &start, const Vector
     return;
 }
 
+VectorXf TrapezoidalTrajectory(const VectorXf &start, const VectorXf &end, const float &in1, const float &in2, const float &cur_time, const string &method = "vt") {
+    float total_time = (method == "va") ? (in2 + in1 * in1) / (in1 * in2) : in2;
+    float s;
+
+    if (method == "vt") {
+        s = TrapezoidalVT(in1, total_time, cur_time);
+    } else if (method == "at") {
+        s = TrapezoidalAT(in1, total_time, cur_time);
+    } else {
+        s = TrapezoidalVA(in1, in2, cur_time);
+    }
+    if (s != -1) return start + s * (end - start);
+    cout << "[TrapezoidalTrajectory] Error" << endl; 
+    return start;
+}
+
+
 /*
 % Takes Xstart: The initial end-effector configuration,
 %       Xend: The final end-effector configuration,
@@ -788,7 +853,7 @@ void ScrewTrajectory(vector<Matrix4f> &traj, const Matrix4f &start, const Matrix
         } else {
             s = QuinticTimeScaling(total_time, time_gap * i);
         }
-        cur = start * se3totf(s * (tf2se3(TransInv(start) * end)));
+        cur = start * se3ToTF(s * (tf2se3(TransInv(start) * end)));
         traj.emplace_back(cur);
     }
     return;

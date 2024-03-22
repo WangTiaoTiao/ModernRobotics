@@ -1,0 +1,8 @@
+int16 id
+float32 total_time
+float32[] goal_twist
+---
+float32[] final_thetalist 
+---
+float32 cur_time
+float32 diff

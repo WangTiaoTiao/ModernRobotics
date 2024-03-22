@@ -21,11 +21,12 @@ public:
 
     UR5INFO();
 
-    timer_ = this->create_wall_timer(10ms, std::bind(&JointStatePublisher::timer_cb, this));
+    timer_ = this->create_wall_timer(10ms, std::bind(&JointStatePublisher::exe8_cb, this));
 
     RCLCPP_INFO(this->get_logger(), "Create exe8_node !");
   }
 
+  
   ~JointStatePublisher() {
     RCLCPP_INFO(this->get_logger(), "Destory exe8_node !");
   }
@@ -38,7 +39,7 @@ private:
     thetalist_ = thetalist_ + dt * d_thetalist_;
   }
 
-  void timer_cb() {
+  void exe8_cb() {
   
     auto dd_thetalist = ForwardDynamics(thetalist_, d_thetalist_, taulist_, g_, f_tip, Mlist_, Glist_, Slist_);
     
@@ -77,6 +78,8 @@ private:
     Mlist_.emplace_back(Matrix4f{{1, 0, 0,  0}, {0, 1, 0,  0}, { 0,  0, 1,  h2}, {0, 0, 0, 1}});
     Mlist_.emplace_back(Matrix4f{{1, 0, 0,  0}, {0, 0, 1, w3}, { 0, -1, 0,   0}, {0, 0, 0, 1}});
 
+    M_ = Matrix4f{{-1, 0, 0, l1 + l2}, {0, 0, 1, w1 + w2}, {0, 1, 0, h1 - h2}, {0, 0, 0, 1}};
+
     Glist_.reserve(6);
     Glist_.emplace_back(getG_cylinder(3.7,    0.06, 0.15));
     Glist_.emplace_back(getG_cylinder(8.393,  0.06, 0.56));
@@ -99,7 +102,7 @@ private:
 
     g_ << 0, 0, -9.81;
   }
-
+  
   MatrixXf getG_cylinder(const float &m, const float &r, const float &l) const {
     MatrixXf g = MatrixXf::Zero(6, 6);
     float ixy = m * (3 * r * r + l * l) / 12;
@@ -115,7 +118,11 @@ private:
   Eigen::VectorXf d_thetalist_;
   Eigen::VectorXf taulist_;
   Eigen::Vector3f g_;
-  Eigen::VectorXf f_tip; 
+  Eigen::VectorXf f_tip;
+  Eigen::Matrix4f M_;
+
+  vector<VectorXf> traj_9_;
+  int cnt_;
   
   rclcpp::Publisher<JointState>::SharedPtr js_pub_;
   rclcpp::TimerBase::SharedPtr timer_;
